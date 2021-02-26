@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:geolocator/geolocator.dart';
+
 
 import 'package:rutasapp/bloc/mapa/mapa_bloc.dart';
 import 'package:rutasapp/bloc/mi_ubicacion/mi_ubicacion_bloc.dart';
@@ -41,10 +41,13 @@ class _MapaPageState extends State<MapaPage> {
             builder: (context, state) => crearMapa(state)
           ),
 
+          
           Positioned(
             top: 15,
             child: SearchBar()
           ),
+          
+          MarcadorManual(),
 
         ],
       ),
@@ -74,22 +77,29 @@ class _MapaPageState extends State<MapaPage> {
       zoom: 15,
     );
 
-    return GoogleMap(
-      initialCameraPosition: cameraPosition,
-      // compassEnabled: true,
-      myLocationEnabled: true,
-      myLocationButtonEnabled: false,
-      zoomControlsEnabled: false,
-      onMapCreated: mapaBloc.initMapa,
-      polylines: mapaBloc.state.polylines.values.toSet(),
-      onCameraMove: (cameraPosition) {
-        // cameraPosition.target = LatLng central del mapa
-        mapaBloc.add(OnMovioMapa(cameraPosition.target));
-      },
-      onCameraIdle: () {
-        // print('MapaIdle');
+    return BlocBuilder<MapaBloc, MapaState>(
+      builder: (context, _) {
+        return GoogleMap(
+          initialCameraPosition: cameraPosition,
+          // compassEnabled: true,
+          myLocationEnabled: true,
+          myLocationButtonEnabled: false,
+          zoomControlsEnabled: false,
+          onMapCreated: mapaBloc.initMapa,
+          polylines: mapaBloc.state.polylines.values.toSet(),
+          markers: mapaBloc.state.markers.values.toSet(),
+          onCameraMove: (cameraPosition) {
+            // cameraPosition.target = LatLng central del mapa
+            mapaBloc.add(OnMovioMapa(cameraPosition.target));
+          },
+          onCameraIdle: () {
+            // print('MapaIdle');
+          },
+        );
       },
     );
+
+    
 
 
   }

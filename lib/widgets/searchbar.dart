@@ -2,8 +2,27 @@ part of 'widgets.dart';
 
 
 class SearchBar extends StatelessWidget {
+
+
   @override
   Widget build(BuildContext context) {
+    return BlocBuilder<BusquedaBloc, BusquedaState>(
+      builder: (context, state) {
+        
+        if( state.seleccionManual ) {
+          return Container();
+        }else{
+          return FadeInDown(
+            duration: Duration( milliseconds: 300 ),
+            child: buildSearchBar( context )
+          );
+        }
+
+      },
+    );
+  }
+
+  Widget buildSearchBar(BuildContext context) {
 
     final width = MediaQuery.of(context).size.width;
 
@@ -14,9 +33,15 @@ class SearchBar extends StatelessWidget {
         child: GestureDetector(
           onTap: () async {
 
-            final resultado = await showSearch(context: context, delegate: SearchDestination() );
-            print(resultado);
-            retornoBusqueda(resultado);
+            final proximidad = context.read<MiUbicacionBloc>().state.ubicacion;
+            final historial = context.read<BusquedaBloc>().state.historial;
+
+            final resultado = await showSearch(
+              context: context, 
+              delegate: SearchDestination(proximidad, historial)
+            );
+
+            retornoBusqueda(context, resultado);
 
           },
           child: Container(
@@ -37,12 +62,46 @@ class SearchBar extends StatelessWidget {
     );
   }
 
-  void retornoBusqueda( SearchResult result ){
+  Future retornoBusqueda( BuildContext context, SearchResult result ) async{
     
-    if( result.cancelo ){
+    if( result.cancelo ) return;
+
+    if( result.manual ){
+      context.read<BusquedaBloc>().add( OnActivarMarcadorManual() );
       return ;
     }
 
+    calculandoAlerta(context);
+
+    // Calcular la ruta en base al valor: result
+    final trafficService = new TrafficService();
+    final mapaBloc = context.read<MapaBloc>();
+    final inicio = context.read<MiUbicacionBloc>().state.ubicacion;
+    final destino = result.position;
+
+    final drivingResponse = await trafficService.getCoordsInicioYDestino(inicio, destino );
+
+    final geometry = drivingResponse.routes[0].geometry;
+    final duracion = drivingResponse.routes[0].duration;
+    final distancia = drivingResponse.routes[0].distance;
+    final nombreDestino = result.nombreDestino;
+
+    final points = Poly.Polyline.Decode( encodedString: geometry, precision: 6 );
+    final List<LatLng> rutaCoordenadas = points.decodedCoords.map(
+      (point) => LatLng(point[0], point[1])
+    ).toList();
+
+
+    mapaBloc.add( OnCrearRutaInicioDestino( rutaCoordenadas, distancia, duracion, nombreDestino ) );
+
+    Navigator.of(context).pop();
+
+    //Agregar al historial
+    final busquedaBloc = context.read<BusquedaBloc>();
+    busquedaBloc.add( OnAgregarHistorial(result) );
+
+
   }
+
 
 }
